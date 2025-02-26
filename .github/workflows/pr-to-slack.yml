@@ -1,0 +1,45 @@
+name: PR Slack Notification
+
+on:
+  pull_request:
+    types: [opened, assigned]
+
+jobs:
+  notify-slack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get Slack User ID
+        id: get-slack-id
+        run: |
+          GITHUB_USER="${{ github.event.pull_request.assignee.login }}"
+          SLACK_ID=$(jq -r --arg user "$GITHUB_USER" '.[$user] // ""' .github/workflows/github-slack-mapping.json)
+          echo "slack_id=$SLACK_ID" >> $GITHUB_OUTPUT
+          echo "github_user=$GITHUB_USER" >> $GITHUB_OUTPUT
+
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          channel-id: 'C08F7FQA5NX'
+          payload: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*New PR:* <${{ github.event.pull_request.html_url }}|${{ github.event.pull_request.title }}>"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Assignee:* ${{ steps.get-slack-id.outputs.slack_id && format('<@{0}>', steps.get-slack-id.outputs.slack_id) || steps.get-slack-id.outputs.github_user }}\n*Author:* ${{ github.event.pull_request.user.login }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 
