@@ -27,24 +27,14 @@ jobs:
         run: |
           # Get assignees' Slack IDs (which includes the author)
           ASSIGNEES=$(jq -r --argjson users '${{ toJSON(github.event.pull_request.assignees.*.login) }}' \
-            'reduce ($users[] | . as $u) as $user (""; 
-              if . == "" then
-                if has($user) then "<@" + .[$user] + ">" else $user end
-              else
-                . + ", " + (if has($user) then "<@" + .[$user] + ">" else $user end)
-              end)' \
-            .github/workflows/github-slack-mapping.json)
+            '$users[] as $u | if has($u) then "<@" + .[$u] + ">" else $u end | @csv' \
+            .github/workflows/github-slack-mapping.json | sed 's/"//g')
           echo "assignees=$ASSIGNEES" >> $GITHUB_OUTPUT
 
           # Get reviewers' Slack IDs
           REVIEWERS=$(jq -r --argjson users '${{ toJSON(github.event.pull_request.requested_reviewers.*.login) }}' \
-            'reduce ($users[] | . as $u) as $user (""; 
-              if . == "" then
-                if has($user) then "<@" + .[$user] + ">" else $user end
-              else
-                . + ", " + (if has($user) then "<@" + .[$user] + ">" else $user end)
-              end)' \
-            .github/workflows/github-slack-mapping.json)
+            '$users[] as $u | if has($u) then "<@" + .[$u] + ">" else $u end | @csv' \
+            .github/workflows/github-slack-mapping.json | sed 's/"//g')
           echo "reviewers=$REVIEWERS" >> $GITHUB_OUTPUT
 
       - name: Send Slack notification
