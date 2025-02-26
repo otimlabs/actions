@@ -27,7 +27,15 @@ jobs:
         run: |
           # Get assignees' Slack IDs (which includes the author)
           ASSIGNEES=$(jq -r --argjson users '${{ toJSON(github.event.pull_request.assignees.*.login) }}' \
-            '$users[] as $u | if has($u) then "<@" + .[$u] + ">" else $u end | @csv' \
+            'if ($users|length) > 0 then
+              ($users[] as $u | if has($u) then "<@" + .[$u] + ">" else $u end) | @csv
+            else
+              if has("${{ github.event.pull_request.assignee.login }}") then
+                "<@" + .["${{ github.event.pull_request.assignee.login }}"] + ">"
+              else
+                "${{ github.event.pull_request.assignee.login }}"
+              end
+            end' \
             .github/workflows/github-slack-mapping.json | sed 's/"//g')
           echo "assignees=$ASSIGNEES" >> $GITHUB_OUTPUT
 
@@ -49,14 +57,14 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Pull request opened in ${{ github.event.repository.name }}\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}>"
+                    "text": "Pull request opened in `${{ github.event.repository.name }}`\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}>"
                   }
                 },
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Assignees:* ${{ steps.get-slack-id.outputs.assignees || 'None' }}\n*Reviewers:* ${{ steps.get-slack-id.outputs.reviewers || 'None' }}"
+                    "text": "*Assignees:* ${{ steps.get-slack-id.outputs.assignees || github.event.pull_request.assignee.login || 'None' }}\n*Reviewers:* ${{ steps.get-slack-id.outputs.reviewers || 'None' }}"
                   }
                 }
               ]
