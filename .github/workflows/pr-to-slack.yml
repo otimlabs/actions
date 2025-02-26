@@ -57,7 +57,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Pull request opened in `${{ github.event.repository.name }}`\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}>"
+                    "text": "Pull request opened in `${{ github.event.repository.name }}`\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}>:"
                   }
                 },
                 {
@@ -80,7 +80,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.slack-notification.outputs.thread_ts }}",
-              "text": "<@${{ steps.get-slack-id.outputs.assignees }}> Please add reviewers to your PR"
+              "text": "$(jq -r --arg user '${{ github.event.pull_request.assignee.login }}' 'if has($user) then "<@" + .[$user] + ">" else $user end' .github/workflows/github-slack-mapping.json) Please add reviewers to your PR"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 
