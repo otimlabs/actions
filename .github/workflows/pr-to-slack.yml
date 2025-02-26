@@ -2,7 +2,7 @@ name: PR Slack Notification
 
 on:
   pull_request:
-    types: [opened, assigned]
+    types: [opened, reopened,assigned]
 
 jobs:
   notify-slack:
