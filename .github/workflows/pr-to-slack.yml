@@ -25,11 +25,17 @@ jobs:
       - name: Get Slack User ID
         id: get-slack-id
         run: |
-          # Since author is most likely the assignee, we can just use the assignee directly
-          GITHUB_USER="${{ github.event.pull_request.user.login }}"
-          SLACK_ID=$(jq -r --arg user "$GITHUB_USER" '.[$user] // ""' .github/workflows/github-slack-mapping.json)
-          echo "slack_id=$SLACK_ID" >> $GITHUB_OUTPUT
-          echo "github_user=$GITHUB_USER" >> $GITHUB_OUTPUT
+          # Get assignees' Slack IDs (which includes the author)
+          ASSIGNEES=$(jq -r --argjson users '${{ toJSON(github.event.pull_request.assignees.*.login) }}' \
+            '$users | map(. as $u | if $u | IN(keys) then "<@" + .[$u] + ">" else $u end) | join(", ")' \
+            .github/workflows/github-slack-mapping.json)
+          echo "assignees=$ASSIGNEES" >> $GITHUB_OUTPUT
+
+          # Get reviewers' Slack IDs
+          REVIEWERS=$(jq -r --argjson users '${{ toJSON(github.event.pull_request.requested_reviewers.*.login) }}' \
+            '$users | map(. as $u | if $u | IN(keys) then "<@" + .[$u] + ">" else $u end) | join(", ")' \
+            .github/workflows/github-slack-mapping.json)
+          echo "reviewers=$REVIEWERS" >> $GITHUB_OUTPUT
 
       - name: Send Slack notification
         id: slack-notification
@@ -43,14 +49,14 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "<${{ github.event.pull_request.html_url }}>"
+                    "text": "${{ github.event.pull_request.title }}\n${{ github.event.pull_request.html_url }}"
                   }
                 },
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Author:* ${{ steps.get-slack-id.outputs.slack_id && format('<@{0}>', steps.get-slack-id.outputs.slack_id) || steps.get-slack-id.outputs.github_user }}\n*Reviewers:* ${{ github.event.pull_request.requested_reviewers != null && github.event.pull_request.requested_reviewers.length > 0 && join(github.event.pull_request.requested_reviewers.*.login, ', ') || 'None' }}"
+                    "text": "*Assignees:* ${{ steps.get-slack-id.outputs.assignees || 'None' }}\n*Reviewers:* ${{ steps.get-slack-id.outputs.reviewers || 'None' }}"
                   }
                 }
               ]
@@ -66,7 +72,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.slack-notification.outputs.thread_ts }}",
-              "text": "<@${{ steps.get-slack-id.outputs.slack_id }}> Please add reviewers to your PR"
+              "text": "<@${{ steps.get-slack-id.outputs.assignees }}> Please add reviewers to your PR"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 
