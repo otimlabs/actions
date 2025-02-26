@@ -72,6 +72,15 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
+      # Add this new step before the reminder
+      - name: Get assignee Slack ID for reminder
+        id: get-reminder-id
+        run: |
+          REMINDER_ID=$(jq -r --arg user "${{ github.event.pull_request.assignee.login }}" \
+            'if has($user) then "<@" + .[$user] + ">" else $user end' \
+            .github/workflows/github-slack-mapping.json)
+          echo "reminder_id=$REMINDER_ID" >> $GITHUB_OUTPUT
+
       - name: Send reviewer reminder
         if: github.event.pull_request.requested_reviewers == null || github.event.pull_request.requested_reviewers.length == 0
         uses: slackapi/slack-github-action@v1.24.0
@@ -80,7 +89,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.slack-notification.outputs.thread_ts }}",
-              "text": "$(jq -r --arg user '${{ github.event.pull_request.assignee.login }}' 'if has($user) then "<@" + .[$user] + ">" else $user end' .github/workflows/github-slack-mapping.json) Please add reviewers to your PR"
+              "text": "${{ steps.get-reminder-id.outputs.reminder_id }} Please add reviewers to your PR"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 
