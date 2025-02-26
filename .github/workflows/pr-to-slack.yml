@@ -27,13 +27,23 @@ jobs:
         run: |
           # Get assignees' Slack IDs (which includes the author)
           ASSIGNEES=$(jq -r --argjson users '${{ toJSON(github.event.pull_request.assignees.*.login) }}' \
-            '$users | map(. as $u | if .[$u] then "<@" + .[$u] + ">" else $u end) | join(", ")' \
+            'reduce ($users[] | . as $u) as $user (""; 
+              if . == "" then
+                if has($user) then "<@" + .[$user] + ">" else $user end
+              else
+                . + ", " + (if has($user) then "<@" + .[$user] + ">" else $user end)
+              end)' \
             .github/workflows/github-slack-mapping.json)
           echo "assignees=$ASSIGNEES" >> $GITHUB_OUTPUT
 
           # Get reviewers' Slack IDs
           REVIEWERS=$(jq -r --argjson users '${{ toJSON(github.event.pull_request.requested_reviewers.*.login) }}' \
-            '$users | map(. as $u | if .[$u] then "<@" + .[$u] + ">" else $u end) | join(", ")' \
+            'reduce ($users[] | . as $u) as $user (""; 
+              if . == "" then
+                if has($user) then "<@" + .[$user] + ">" else $user end
+              else
+                . + ", " + (if has($user) then "<@" + .[$user] + ">" else $user end)
+              end)' \
             .github/workflows/github-slack-mapping.json)
           echo "reviewers=$REVIEWERS" >> $GITHUB_OUTPUT
 
