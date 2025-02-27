@@ -8,7 +8,7 @@ on:
 
 jobs:
   notify:
-    uses: otimlabs/actions/.github/workflows/pr-base.yml@julian/secrets-n-merging
+    uses: otimlabs/actions/.github/workflows/pr-base.yml@main
     secrets:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       SLACK_GITHUB_LOGS_CHANNEL_ID: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
