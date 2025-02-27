@@ -2,15 +2,13 @@ name: Base PR Workflow
 
 on:
   workflow_call:
-    inputs:
-      slack-channel-id:
-        required: true
-        type: string
-        description: "The Slack channel ID to send notifications to"
     secrets:
       SLACK_BOT_TOKEN:
         required: true
         description: "Slack bot token for sending notifications"
+      SLACK_GITHUB_LOGS_CHANNEL_ID:
+        required: true
+        description: "The Slack channel ID to send notifications to"
 
 jobs:
   notify-slack:
@@ -70,7 +68,7 @@ jobs:
         id: slack-notification
         uses: slackapi/slack-github-action@v1.24.0
         with:
-          channel-id: ${{ inputs.slack-channel-id }}
+          channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
             {
               "blocks": [
@@ -128,7 +126,7 @@ jobs:
         if: (github.event.action == 'opened' || github.event.action == 'reopened') && toJSON(github.event.pull_request.requested_reviewers) == '[]'
         uses: slackapi/slack-github-action@v1.24.0
         with:
-          channel-id: ${{ inputs.slack-channel-id }}
+          channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
             {
               "thread_ts": "${{ steps.slack-notification.outputs.thread_ts }}",
@@ -141,7 +139,7 @@ jobs:
         if: github.event.action == 'review_requested'
         uses: slackapi/slack-github-action@v1.24.0
         with:
-          channel-id: ${{ inputs.slack-channel-id }}
+          channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts.outputs.thread_ts }}",
