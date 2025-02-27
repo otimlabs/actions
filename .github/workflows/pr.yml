@@ -5,8 +5,10 @@ on:
     types: [opened, reopened, review_requested]
   pull_request_target:
     types: [closed]
+  pull_request_review:
+    types: [submitted]
 
 jobs:
   notify:
-    uses: otimlabs/actions/.github/workflows/pr-base.yml@main
+    uses: otimlabs/actions/.github/workflows/pr-base.yml@julian/workflow-call-secrets
     secrets: inherit
