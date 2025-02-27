@@ -5,10 +5,10 @@ on:
     types: [opened, reopened, review_requested]
   pull_request_target:
     types: [closed]
+  pull_request_review:
+    types: [submitted]
 
 jobs:
   notify:
     uses: otimlabs/actions/.github/workflows/pr-base.yml@main
-    secrets:
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      SLACK_GITHUB_LOGS_CHANNEL_ID: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
+    secrets: inherit
