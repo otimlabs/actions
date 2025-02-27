@@ -3,6 +3,8 @@ name: PR Workflow
 on:
   pull_request:
     types: [opened, reopened, review_requested]
+  pull_request_target:
+    types: [closed]
 
 jobs:
   notify:
