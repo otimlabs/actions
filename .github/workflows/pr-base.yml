@@ -142,7 +142,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
       - name: Send reviewer added notification
-        if: github.event.action == 'review_requested'
+        if: github.event.action == 'review_requested' && steps.get-thread-ts.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
