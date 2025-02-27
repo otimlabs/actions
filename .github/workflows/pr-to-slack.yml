@@ -30,7 +30,7 @@ jobs:
             .github/workflows/github-slack-mapping.json)
           echo "author=$AUTHOR" >> $GITHUB_OUTPUT
 
-          # Get reviewers' Slack IDs - improved formatting
+          # Get reviewers' Slack IDs
           REVIEWERS=$(echo '${{ toJSON(github.event.pull_request.requested_reviewers) }}' | \
             jq -r '.[].login | select(. != null)' | \
             while read -r reviewer; do
@@ -38,7 +38,7 @@ jobs:
                 'if has($user) then "<@" + .[$user] + ">" else $user end' \
                 .github/workflows/github-slack-mapping.json)
               echo "$SLACK_ID"
-            done | tr '\n' ' ' | sed 's/ $//' | sed 's/ / | /g')
+            done | paste -sd "," -)
           
           if [ -z "$REVIEWERS" ]; then
             REVIEWERS="None"
@@ -58,7 +58,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Pull request opened in `${{ github.event.repository.name }}`\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}>"
+                    "text": "Pull request ${{ github.event.action }} in `${{ github.event.repository.name }}`\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}>"
                   }
                 },
                 {
