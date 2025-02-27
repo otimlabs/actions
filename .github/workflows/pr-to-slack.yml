@@ -94,7 +94,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `<!-- SLACK_THREAD_TS:${{ steps.slack-notification.outputs.thread_ts }} -->`
+              body: `Linked to Slack thread successfully\n<!-- SLACK_THREAD_TS:${{ steps.slack-notification.outputs.thread_ts }} -->`
             })
 
       - name: Get thread_ts
@@ -124,7 +124,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.slack-notification.outputs.thread_ts }}",
-              "text": "${{ steps.get-slack-id.outputs.author }} please add reviewers to your PR!"
+              "text": "${{ steps.get-slack-id.outputs.author }} please add reviewers to your PR"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
