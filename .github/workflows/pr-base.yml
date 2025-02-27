@@ -1,0 +1,151 @@
+name: Base PR Workflow
+
+on:
+  workflow_call:
+    inputs:
+      slack-channel-id:
+        required: true
+        type: string
+        description: "The Slack channel ID to send notifications to"
+    secrets:
+      SLACK_BOT_TOKEN:
+        required: true
+        description: "Slack bot token for sending notifications"
+
+jobs:
+  notify-slack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Auto-assign PR to author
+        if: github.event.action == 'opened' || github.event.action == 'reopened'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              assignees: [context.payload.pull_request.user.login]
+            })
+        
+      - name: Get Slack User ID
+        id: get-slack-id
+        run: |
+          # Get newly requested reviewer's Slack ID if review_requested
+          if [ "${{ github.event.action }}" = "review_requested" ]; then
+            NEW_REVIEWER=$(jq -r --arg user "${{ github.event.requested_reviewer.login }}" \
+              'if has($user) then "<@" + .[$user] + ">" else $user end' \
+              .github/workflows/github-slack-mapping.json)
+            echo "new_reviewer=$NEW_REVIEWER" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Below only runs for opened/reopened events
+          # Get author's Slack ID
+          AUTHOR=$(jq -r --arg user "${{ github.event.pull_request.user.login }}" \
+            'if has($user) then "<@" + .[$user] + ">" else $user end' \
+            .github/workflows/github-slack-mapping.json)
+          echo "author=$AUTHOR" >> $GITHUB_OUTPUT
+
+          # Get all reviewers' Slack IDs
+          REVIEWERS=$(echo '${{ toJSON(github.event.pull_request.requested_reviewers) }}' | \
+            jq -r '.[].login | select(. != null)' | \
+            while read -r reviewer; do
+              SLACK_ID=$(jq -r --arg user "$reviewer" \
+                'if has($user) then "<@" + .[$user] + ">" else $user end' \
+                .github/workflows/github-slack-mapping.json)
+              echo "$SLACK_ID"
+            done | paste -sd "," -)
+          
+          if [ -z "$REVIEWERS" ]; then
+            REVIEWERS="None"
+          fi
+          
+          echo "reviewers=$REVIEWERS" >> $GITHUB_OUTPUT
+
+      - name: Send initial Slack notification
+        if: github.event.action == 'opened' || github.event.action == 'reopened'
+        id: slack-notification
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          channel-id: ${{ inputs.slack-channel-id }}
+          payload: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Pull request ${{ github.event.action }} in `${{ github.event.repository.name }}`:\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}>"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Author:* ${{ steps.get-slack-id.outputs.author }}\n*Reviewers:* ${{ steps.get-slack-id.outputs.reviewers || 'None' }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+      - name: Store thread_ts
+        if: github.event.action == 'opened' || github.event.action == 'reopened'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `Linked to Slack thread successfully\n<!-- SLACK_THREAD_TS:${{ steps.slack-notification.outputs.thread_ts }} -->`
+            })
+
+      - name: Get thread_ts
+        if: github.event.action == 'review_requested'
+        id: get-thread-ts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            const threadComment = comments.data.find(comment => 
+              comment.body.includes('SLACK_THREAD_TS:')
+            );
+            if (threadComment) {
+              const thread_ts = threadComment.body.match(/SLACK_THREAD_TS:(.*) -->/)[1].trim();
+              core.setOutput('thread_ts', thread_ts);
+            }
+
+      - name: Send reviewer reminder
+        if: (github.event.action == 'opened' || github.event.action == 'reopened') && toJSON(github.event.pull_request.requested_reviewers) == '[]'
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          channel-id: ${{ inputs.slack-channel-id }}
+          payload: |
+            {
+              "thread_ts": "${{ steps.slack-notification.outputs.thread_ts }}",
+              "text": "${{ steps.get-slack-id.outputs.author }} please add reviewers to your PR"
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+      - name: Send reviewer added notification
+        if: github.event.action == 'review_requested'
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          channel-id: ${{ inputs.slack-channel-id }}
+          payload: |
+            {
+              "thread_ts": "${{ steps.get-thread-ts.outputs.thread_ts }}",
+              "text": "${{ steps.get-slack-id.outputs.new_reviewer }} has been added as a reviewer"
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 
