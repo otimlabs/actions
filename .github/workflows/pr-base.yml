@@ -173,8 +173,8 @@ jobs:
               core.setOutput('thread_ts', thread_ts);
             }
 
-      - name: Send PR state notification
-        if: github.event.action == 'closed'
+      - name: Send PR state merge/close notification
+        if: github.event.action == 'closed' && steps.get-thread-ts-close.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
