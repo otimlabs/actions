@@ -202,7 +202,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts-close.outputs.thread_ts }}",
-              "text": "${{ github.event.pull_request.merged == true && '✅ PR has been merged! 🎉' || '❌ PR was closed without merging' }}"
+              "text": "${{ github.event.pull_request.merged == true && '🚢 PR has been merged!' || '❌ PR was closed without merging' }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
