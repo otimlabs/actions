@@ -31,9 +31,13 @@ jobs:
           echo "author=$AUTHOR" >> $GITHUB_OUTPUT
 
           # Get reviewers' Slack IDs
-          REVIEWERS=$(jq -r --argjson users '${{ toJSON(github.event.pull_request.requested_reviewers.*.login) }}' \
-            '$users[] as $u | if has($u) then "<@" + .[$u] + ">" else $u end | @csv' \
-            .github/workflows/github-slack-mapping.json | sed 's/"//g')
+          REVIEWERS=$(jq -r --argjson users '${{ toJSON(github.event.pull_request.requested_reviewers[*].login) }}' \
+            'if ($users | length) > 0 then
+              ($users[] as $u | if has($u) then "<@" + .[$u] + ">" else $u end) | join(", ")
+            else
+              "None"
+            end' \
+            .github/workflows/github-slack-mapping.json)
           echo "reviewers=$REVIEWERS" >> $GITHUB_OUTPUT
 
       - name: Send Slack notification
@@ -48,7 +52,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Pull request opened in `${{ github.event.repository.name }}`\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}>:"
+                    "text": "Pull request opened in `${{ github.event.repository.name }}`\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}>"
                   }
                 },
                 {
