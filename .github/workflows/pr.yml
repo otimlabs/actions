@@ -8,5 +8,5 @@ on:
 
 jobs:
   notify:
-    uses: otimlabs/actions/.github/workflows/pr-base.yml@julian/workflow-call-secrets
+    uses: otimlabs/actions/.github/workflows/pr-base.yml@main
     secrets: inherit
