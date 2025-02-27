@@ -15,6 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          repository: otimlabs/actions
+          path: otimlabs-actions
 
       - name: Auto-assign PR to author
         if: github.event.action == 'opened' || github.event.action == 'reopened'
@@ -31,11 +34,14 @@ jobs:
       - name: Get Slack User ID
         id: get-slack-id
         run: |
+          # Update path to use the checked out repository
+          MAPPING_FILE="otimlabs-actions/.github/workflows/github-slack-mapping.json"
+          
           # Get newly requested reviewer's Slack ID if review_requested
           if [ "${{ github.event.action }}" = "review_requested" ]; then
             NEW_REVIEWER=$(jq -r --arg user "${{ github.event.requested_reviewer.login }}" \
               'if has($user) then "<@" + .[$user] + ">" else $user end' \
-              .github/workflows/github-slack-mapping.json)
+              $MAPPING_FILE)
             echo "new_reviewer=$NEW_REVIEWER" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -44,7 +50,7 @@ jobs:
           # Get author's Slack ID
           AUTHOR=$(jq -r --arg user "${{ github.event.pull_request.user.login }}" \
             'if has($user) then "<@" + .[$user] + ">" else $user end' \
-            .github/workflows/github-slack-mapping.json)
+            $MAPPING_FILE)
           echo "author=$AUTHOR" >> $GITHUB_OUTPUT
 
           # Get all reviewers' Slack IDs
@@ -53,7 +59,7 @@ jobs:
             while read -r reviewer; do
               SLACK_ID=$(jq -r --arg user "$reviewer" \
                 'if has($user) then "<@" + .[$user] + ">" else $user end' \
-                .github/workflows/github-slack-mapping.json)
+                $MAPPING_FILE)
               echo "$SLACK_ID"
             done | paste -sd "," -)
           
@@ -136,7 +142,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
       - name: Send reviewer added notification
-        if: github.event.action == 'review_requested'
+        if: github.event.action == 'review_requested' && steps.get-thread-ts.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
@@ -167,8 +173,8 @@ jobs:
               core.setOutput('thread_ts', thread_ts);
             }
 
-      - name: Send PR state notification
-        if: github.event.action == 'closed'
+      - name: Send PR state merge/close notification
+        if: github.event.action == 'closed' && steps.get-thread-ts-close.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
