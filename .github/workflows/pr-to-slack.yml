@@ -30,14 +30,25 @@ jobs:
             .github/workflows/github-slack-mapping.json)
           echo "author=$AUTHOR" >> $GITHUB_OUTPUT
 
-          # Get reviewers' Slack IDs
-          REVIEWERS=$(jq -r --argjson users '${{ toJSON(github.event.pull_request.requested_reviewers[*].login) }}' \
-            'if ($users | length) > 0 then
-              ($users[] as $u | if has($u) then "<@" + .[$u] + ">" else $u end) | join(", ")
-            else
-              "None"
-            end' \
-            .github/workflows/github-slack-mapping.json)
+          # Debug: Print raw reviewers data
+          echo "Raw reviewers data:"
+          echo '${{ toJSON(github.event.pull_request.requested_reviewers) }}'
+
+          # Get reviewers' Slack IDs - simplified version
+          REVIEWERS=$(echo '${{ toJSON(github.event.pull_request.requested_reviewers) }}' | \
+            jq -r '.[].login | select(. != null)' | \
+            while read -r reviewer; do
+              SLACK_ID=$(jq -r --arg user "$reviewer" \
+                'if has($user) then "<@" + .[$user] + ">" else $user end' \
+                .github/workflows/github-slack-mapping.json)
+              echo "$SLACK_ID"
+            done | paste -sd ", " -)
+          
+          if [ -z "$REVIEWERS" ]; then
+            REVIEWERS="None"
+          fi
+          
+          echo "Final reviewers: $REVIEWERS"
           echo "reviewers=$REVIEWERS" >> $GITHUB_OUTPUT
 
       - name: Send Slack notification
