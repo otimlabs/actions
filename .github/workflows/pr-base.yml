@@ -163,7 +163,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts.outputs.thread_ts }}",
-              "text": "${{ steps.get-slack-id.outputs.new_reviewer }} has been added as a reviewer"
+              "text": "${{ github.event.requested_reviewer.login == github.event.sender.login && format('{0}, a re-review has been requested for this PR', steps.get-slack-id.outputs.new_reviewer) || format('{0} has been added as a reviewer', steps.get-slack-id.outputs.new_reviewer) }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
