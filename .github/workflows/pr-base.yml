@@ -1,14 +1,22 @@
-name: PR Slack Notification
+name: Base PR Workflow
 
 on:
-  pull_request:
-    types: [opened, reopened, review_requested]
+  workflow_call:
+    inputs:
+      slack-channel-id:
+        required: true
+        type: string
+        description: "The Slack channel ID to send notifications to"
+    secrets:
+      SLACK_BOT_TOKEN:
+        required: true
+        description: "Slack bot token for sending notifications"
 
 jobs:
   notify-slack:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
       - name: Auto-assign PR to author
         if: github.event.action == 'opened' || github.event.action == 'reopened'
@@ -62,7 +70,7 @@ jobs:
         id: slack-notification
         uses: slackapi/slack-github-action@v1.24.0
         with:
-          channel-id: 'C08DDF685GC'
+          channel-id: ${{ inputs.slack-channel-id }}
           payload: |
             {
               "blocks": [
@@ -120,7 +128,7 @@ jobs:
         if: (github.event.action == 'opened' || github.event.action == 'reopened') && toJSON(github.event.pull_request.requested_reviewers) == '[]'
         uses: slackapi/slack-github-action@v1.24.0
         with:
-          channel-id: 'C08DDF685GC'
+          channel-id: ${{ inputs.slack-channel-id }}
           payload: |
             {
               "thread_ts": "${{ steps.slack-notification.outputs.thread_ts }}",
@@ -133,7 +141,7 @@ jobs:
         if: github.event.action == 'review_requested'
         uses: slackapi/slack-github-action@v1.24.0
         with:
-          channel-id: 'C08DDF685GC'
+          channel-id: ${{ inputs.slack-channel-id }}
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts.outputs.thread_ts }}",
