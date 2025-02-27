@@ -2,15 +2,13 @@ name: Base PR Workflow
 
 on:
   workflow_call:
-    inputs:
-      slack-channel-id:
-        required: true
-        type: string
-        description: "The Slack channel ID to send notifications to"
     secrets:
       SLACK_BOT_TOKEN:
         required: true
         description: "Slack bot token for sending notifications"
+      SLACK_GITHUB_LOGS_CHANNEL_ID:
+        required: true
+        description: "The Slack channel ID to send notifications to"
 
 jobs:
   notify-slack:
@@ -70,7 +68,7 @@ jobs:
         id: slack-notification
         uses: slackapi/slack-github-action@v1.24.0
         with:
-          channel-id: ${{ inputs.slack-channel-id }}
+          channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
             {
               "blocks": [
@@ -128,7 +126,7 @@ jobs:
         if: (github.event.action == 'opened' || github.event.action == 'reopened') && toJSON(github.event.pull_request.requested_reviewers) == '[]'
         uses: slackapi/slack-github-action@v1.24.0
         with:
-          channel-id: ${{ inputs.slack-channel-id }}
+          channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
             {
               "thread_ts": "${{ steps.slack-notification.outputs.thread_ts }}",
@@ -141,11 +139,43 @@ jobs:
         if: github.event.action == 'review_requested'
         uses: slackapi/slack-github-action@v1.24.0
         with:
-          channel-id: ${{ inputs.slack-channel-id }}
+          channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts.outputs.thread_ts }}",
               "text": "${{ steps.get-slack-id.outputs.new_reviewer }} has been added as a reviewer"
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+      - name: Get thread_ts for PR close
+        if: github.event.action == 'closed'
+        id: get-thread-ts-close
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            const threadComment = comments.data.find(comment => 
+              comment.body.includes('SLACK_THREAD_TS:')
+            );
+            if (threadComment) {
+              const thread_ts = threadComment.body.match(/SLACK_THREAD_TS:(.*) -->/)[1].trim();
+              core.setOutput('thread_ts', thread_ts);
+            }
+
+      - name: Send PR state notification
+        if: github.event.action == 'closed'
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
+          payload: |
+            {
+              "thread_ts": "${{ steps.get-thread-ts-close.outputs.thread_ts }}",
+              "text": "${{ github.event.pull_request.merged == true && '✅ PR has been merged! 🎉' || '❌ PR was closed without merging' }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 

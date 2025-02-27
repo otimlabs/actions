@@ -3,11 +3,12 @@ name: PR Workflow
 on:
   pull_request:
     types: [opened, reopened, review_requested]
+  pull_request_target:
+    types: [closed]
 
 jobs:
   notify:
     uses: otimlabs/actions/.github/workflows/pr-base.yml@main
-    with:
-      slack-channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }} 
     secrets:
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_GITHUB_LOGS_CHANNEL_ID: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
