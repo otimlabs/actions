@@ -156,7 +156,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.slack-notification.outputs.thread_ts }}",
-              "text": "${{ steps.get-slack-id.outputs.author }} please add reviewers to your PR"
+              "text": "${{ steps.get-slack-id.outputs.author }}, please add reviewers to your PR"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -169,7 +169,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts.outputs.thread_ts }}",
-              "text": "${{ contains(github.event.pull_request.requested_reviewers[*].login, github.event.requested_reviewer.login) && format('{0}, a re-review has been requested for this PR', steps.get-slack-id.outputs.new_reviewer) || format('{0} has been added as a reviewer', steps.get-slack-id.outputs.new_reviewer) }}"
+              "text": "${{ contains(github.event.pull_request.requested_reviewers[*].login, github.event.requested_reviewer.login) && format('{0}, you have been requested to re-review this PR', steps.get-slack-id.outputs.new_reviewer) || format('{0} has been added as a reviewer', steps.get-slack-id.outputs.new_reviewer) }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -233,7 +233,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts-review.outputs.thread_ts }}",
-              "text": "${{ github.event.review.state == 'approved' && '✅' || '🧱' }} <@${{ github.event.review.user.login }}> ${{ github.event.review.state == 'approved' && 'approved' || 'requested changes' }}"
+              "text": "${{ github.event.review.state == 'approved' && '✅' || '🧱' }} ${{ github.event.review.user.login }} ${{ github.event.review.state == 'approved' && 'approved' || 'requested changes' }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 
