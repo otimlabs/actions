@@ -48,10 +48,16 @@ jobs:
       - name: Get Slack User ID
         id: get-slack-id
         run: |
-          # Update path to use the checked out repository
           MAPPING_FILE="otimlabs-actions/.github/workflows/github-slack-mapping.json"
           
-          # Get newly requested reviewer's Slack ID if review_requested
+          if [ "${{ github.event.action }}" = "submitted" ]; then
+            REVIEWER=$(jq -r --arg user "${{ github.event.review.user.login }}" \
+              'if has($user) then "<@" + .[$user] + ">" else $user end' \
+              $MAPPING_FILE)
+            echo "reviewer=$REVIEWER" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           if [ "${{ github.event.action }}" = "review_requested" ]; then
             NEW_REVIEWER=$(jq -r --arg user "${{ github.event.requested_reviewer.login }}" \
               'if has($user) then "<@" + .[$user] + ">" else $user end' \
