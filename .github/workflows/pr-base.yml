@@ -150,14 +150,14 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
       - name: Send reviewer added notification
-        if: github.event.action == 'review_requested' && steps.get-thread-ts.outputs.thread_ts != ''
+        if: github.event.action == 'review_requested' && steps.slack-notification.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
             {
-              "thread_ts": "${{ steps.get-thread-ts.outputs.thread_ts }}",
-              "text": "${{ contains(github.event.pull_request.requested_reviewers.*.login, github.event.requested_reviewer.login) && format('{0}, you have been requested to re-review this PR', steps.get-slack-id.outputs.new_reviewer) || format('{0} has been added as a reviewer', steps.get-slack-id.outputs.new_reviewer) }}"
+              "thread_ts": "${{ steps.slack-notification.outputs.thread_ts }}",
+              "text": "Reviewers added: ${{ steps.get-slack-id.outputs.reviewers }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
