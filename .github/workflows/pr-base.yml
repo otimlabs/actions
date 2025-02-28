@@ -102,7 +102,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Pull request ${{ github.event.action == 'ready_for_review' && 'ready for review' || github.event.action }} in `${{ github.event.repository.name }}`:\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}>"
+                    "text": "Pull request ${{ github.event.action == 'ready_for_review' && 'ready for review' || github.event.action }} in `${{ github.event.repository.name }}`:\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title | replace('>', '&gt;') }}>"
                   }
                 },
                 {
@@ -131,7 +131,7 @@ jobs:
             })
 
       - name: Send reviewer reminder
-        if: (github.event.action == 'opened' || github.event.action == 'reopened') && toJSON(github.event.pull_request.requested_reviewers) == '[]' && steps.slack-notification.outputs.thread_ts != ''
+        if: (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') && toJSON(github.event.pull_request.requested_reviewers) == '[]' && steps.slack-notification.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
