@@ -89,8 +89,14 @@ jobs:
           
           echo "reviewers=$REVIEWERS" >> $GITHUB_OUTPUT
 
+      - name: Set escaped title
+        id: escaped-title
+        run: |
+          title="${{ github.event.pull_request.title }}"
+          echo "value=${title//>/'&gt;'}" >> $GITHUB_OUTPUT
+
       - name: Send initial Slack notification
-        if: (github.event.action == 'opened' || github.event.action == 'reopened') && !github.event.pull_request.draft
+        if: (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') && !github.event.pull_request.draft
         id: slack-notification
         uses: slackapi/slack-github-action@v1.24.0
         with:
@@ -102,7 +108,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Pull request ${{ github.event.action }} in `${{ github.event.repository.name }}`:\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}>"
+                    "text": "Pull request ${{ github.event.action == 'ready_for_review' && 'ready for review' || github.event.action }} in `${{ github.event.repository.name }}`:\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ steps.escaped-title.outputs.value }}>"
                   }
                 },
                 {
@@ -118,7 +124,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
       - name: Store thread_ts
-        if: (github.event.action == 'opened' || github.event.action == 'reopened') && !github.event.pull_request.draft
+        if: (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') && !github.event.pull_request.draft
         uses: actions/github-script@v7
         with:
           github-token: ${{ steps.bot_token.outputs.token }}
@@ -130,9 +136,22 @@ jobs:
               body: `Linked to Slack thread successfully\n<!-- SLACK_THREAD_TS:${{ steps.slack-notification.outputs.thread_ts }} -->`
             })
 
-      - name: Get thread_ts
+      - name: Send reviewer reminder
+        if: (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') && toJSON(github.event.pull_request.requested_reviewers) == '[]' && steps.slack-notification.outputs.thread_ts != ''
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
+          payload: |
+            {
+              "thread_ts": "${{ steps.slack-notification.outputs.thread_ts }}",
+              "text": "${{ steps.get-slack-id.outputs.author }}, please add reviewers to your PR"
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+      - name: Get thread_ts for reviewer added
         if: github.event.action == 'review_requested'
-        id: get-thread-ts
+        id: get-thread-ts-reviewer
         uses: actions/github-script@v7
         with:
           script: |
@@ -149,28 +168,15 @@ jobs:
               core.setOutput('thread_ts', thread_ts);
             }
 
-      - name: Send reviewer reminder
-        if: (github.event.action == 'opened' || github.event.action == 'reopened') && toJSON(github.event.pull_request.requested_reviewers) == '[]'
-        uses: slackapi/slack-github-action@v1.24.0
-        with:
-          channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
-          payload: |
-            {
-              "thread_ts": "${{ steps.slack-notification.outputs.thread_ts }}",
-              "text": "${{ steps.get-slack-id.outputs.author }}, please add reviewers to your PR"
-            }
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-
       - name: Send reviewer added notification
-        if: github.event.action == 'review_requested' && steps.get-thread-ts.outputs.thread_ts != ''
+        if: github.event.action == 'review_requested' && steps.get-thread-ts-reviewer.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
             {
-              "thread_ts": "${{ steps.get-thread-ts.outputs.thread_ts }}",
-              "text": "${{ contains(github.event.pull_request.requested_reviewers.*.login, github.event.requested_reviewer.login) && format('{0}, you have been requested to re-review this PR', steps.get-slack-id.outputs.new_reviewer) || format('{0} has been added as a reviewer', steps.get-slack-id.outputs.new_reviewer) }}"
+              "thread_ts": "${{ steps.get-thread-ts-reviewer.outputs.thread_ts }}",
+              "text": "${{ contains(github.event.pull_request.requested_reviewers[*].id, github.event.requested_reviewer.id) && format('{0} has been asked to re-review', steps.get-slack-id.outputs.new_reviewer) || format('{0} has been added as a reviewer', steps.get-slack-id.outputs.new_reviewer) }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -202,7 +208,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts-close.outputs.thread_ts }}",
-              "text": "${{ github.event.pull_request.merged == true && '✅ PR has been merged! 🎉' || '❌ PR was closed without merging' }}"
+              "text": "${{ github.event.pull_request.merged == true && '🚢 PR has been merged!' || '❌ PR was closed without merging' }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -227,7 +233,7 @@ jobs:
             }
 
       - name: Send review notification
-        if: github.event.action == 'submitted' && steps.get-thread-ts-review.outputs.thread_ts != ''
+        if: github.event.action == 'submitted' && (github.event.review.state == 'approved' || github.event.review.state == 'changes_requested') && steps.get-thread-ts-review.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
