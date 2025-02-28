@@ -89,6 +89,12 @@ jobs:
           
           echo "reviewers=$REVIEWERS" >> $GITHUB_OUTPUT
 
+      - name: Set escaped title
+        id: escaped-title
+        run: |
+          title="${{ github.event.pull_request.title }}"
+          echo "value=${title//>/'&gt;'}" >> $GITHUB_OUTPUT
+
       - name: Send initial Slack notification
         if: (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') && !github.event.pull_request.draft
         id: slack-notification
@@ -102,7 +108,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Pull request ${{ github.event.action == 'ready_for_review' && 'ready for review' || github.event.action }} in `${{ github.event.repository.name }}`:\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ contains(github.event.pull_request.title, '>') && replace(github.event.pull_request.title, '>', '&gt;') || github.event.pull_request.title }}>"
+                    "text": "Pull request ${{ github.event.action == 'ready_for_review' && 'ready for review' || github.event.action }} in `${{ github.event.repository.name }}`:\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ steps.escaped-title.outputs.value }}>"
                   }
                 },
                 {
