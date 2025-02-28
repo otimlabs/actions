@@ -10,5 +10,5 @@ on:
 
 jobs:
   notify:
-    uses: otimlabs/actions/.github/workflows/pr-base.yml@julian/fix-edge-cases
+    uses: otimlabs/actions/.github/workflows/pr-base.yml@main
     secrets: inherit
