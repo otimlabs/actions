@@ -108,13 +108,13 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Pull request ${{ github.event.action == 'ready_for_review' && 'ready for review' || github.event.action }} in `${{ github.event.repository.name }}`:\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title | replace('>', '&gt;') }}>"
+                    "text": "Pull request ${{ github.event.action == 'ready_for_review' && 'ready for review' || github.event.action }} in `${{ github.event.repository.name }}`:\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ steps.escaped-title.outputs.value }}>"
                   }
                 },
                 {
                   "type": "section",
                   "text": {
-                    "type": "mrkdwk",
+                    "type": "mrkdwn",
                     "text": "*Author:* ${{ steps.get-slack-id.outputs.author }}\n*Reviewers:* ${{ steps.get-slack-id.outputs.reviewers || 'None' }}"
                   }
                 }
