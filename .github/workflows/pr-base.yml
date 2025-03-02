@@ -240,7 +240,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts-review.outputs.thread_ts }}",
-              "text": "${{ github.event.review.state == 'approved' && '✅' || '🧱' }} ${{ steps.get-slack-id.outputs.reviewer }} ${{ github.event.review.state == 'approved' && 'approved' || 'requested changes' }}"
+              "text": "${{ github.event.review.state == 'approved' && '✅ PR approved' || '🧱 Changes requested' }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 
