@@ -26,11 +26,13 @@ jobs:
         with:
           app_id: ${{ secrets.GH_APP_ID }}
           private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
-          permissions: |
-            contents: read
-            issues: write
-            pull_requests: write
-            metadata: read
+          permissions: >
+            {
+              "contents": "read",
+              "issues": "write",
+              "pull_requests": "write",
+              "metadata": "read"
+            }
 
       - uses: actions/checkout@v3
         with:
