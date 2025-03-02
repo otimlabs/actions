@@ -176,7 +176,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts-reviewer.outputs.thread_ts }}",
-              "text": "${{ contains(github.event.pull_request.requested_reviewers[*].id, github.event.requested_reviewer.id) && format('{0} has been asked to re-review', steps.get-slack-id.outputs.new_reviewer) || format('{0} has been added as a reviewer', steps.get-slack-id.outputs.new_reviewer) }}"
+              "text": "${{ github.event.pull_request.requested_reviewers[*].login contains github.event.requested_reviewer.login && format('{0} has been asked to re-review', steps.get-slack-id.outputs.new_reviewer) || format('{0} has been added as a reviewer', steps.get-slack-id.outputs.new_reviewer) }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -240,7 +240,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts-review.outputs.thread_ts }}",
-              "text": "${{ github.event.review.state == 'approved' && '✅ PR approved' || '🧱 Changes requested' }}"
+              "text": "${{ github.event.review.state == 'approved' && '✅' || '🧱' }} ${{ github.event.review.user.login }} ${{ github.event.review.state == 'approved' && 'approved' || 'requested changes' }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 
