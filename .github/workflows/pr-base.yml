@@ -168,6 +168,18 @@ jobs:
               core.setOutput('thread_ts', thread_ts);
             }
 
+      - name: Check if re-review
+        if: github.event.action == 'review_requested'
+        id: check-re-review
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isReReview = context.payload.requested_reviewer && 
+                              context.payload.pull_request.requested_reviewers.some(
+                                r => r.id === context.payload.requested_reviewer.id
+                              );
+            core.setOutput('is_re_review', isReReview);
+
       - name: Send reviewer added notification
         if: github.event.action == 'review_requested' && steps.get-thread-ts-reviewer.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@v1.24.0
@@ -176,7 +188,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts-reviewer.outputs.thread_ts }}",
-              "text": "${{ github.event.pull_request.requested_reviewers[*].login contains github.event.requested_reviewer.login && format('{0} has been asked to re-review', steps.get-slack-id.outputs.new_reviewer) || format('{0} has been added as a reviewer', steps.get-slack-id.outputs.new_reviewer) }}"
+              "text": "${{ steps.check-re-review.outputs.is_re_review == 'true' && format('{0} has been asked to re-review', steps.get-slack-id.outputs.new_reviewer) || format('{0} has been added as a reviewer', steps.get-slack-id.outputs.new_reviewer) }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
