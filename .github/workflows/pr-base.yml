@@ -174,11 +174,18 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const isReReview = context.payload.requested_reviewer && 
-                              context.payload.pull_request.requested_reviewers.some(
-                                r => r.id === context.payload.requested_reviewer.id
-                              );
-            core.setOutput('is_re_review', isReReview);
+            const reviews = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            
+            const requestedReviewer = context.payload.requested_reviewer.login;
+            const hasReviewedBefore = reviews.data.some(review => 
+              review.user.login === requestedReviewer
+            );
+            
+            core.setOutput('is_re_review', hasReviewedBefore);
 
       - name: Send reviewer added notification
         if: github.event.action == 'review_requested' && steps.get-thread-ts-reviewer.outputs.thread_ts != ''
