@@ -37,6 +37,7 @@ jobs:
         if: github.event.action == 'opened' || github.event.action == 'reopened'
         uses: actions/github-script@v7
         with:
+          github-token: ${{ steps.bot_token.outputs.token }}
           script: |
             await github.rest.issues.addAssignees({
               owner: context.repo.owner,
@@ -154,6 +155,7 @@ jobs:
         id: get-thread-ts-reviewer
         uses: actions/github-script@v7
         with:
+          github-token: ${{ steps.bot_token.outputs.token }}
           script: |
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -168,6 +170,26 @@ jobs:
               core.setOutput('thread_ts', thread_ts);
             }
 
+      - name: Check if re-review
+        if: github.event.action == 'review_requested'
+        id: check-re-review
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.bot_token.outputs.token }}
+          script: |
+            const reviews = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            
+            const requestedReviewer = context.payload.requested_reviewer.login;
+            const hasReviewedBefore = reviews.data.some(review => 
+              review.user.login === requestedReviewer
+            );
+            
+            core.setOutput('is_re_review', hasReviewedBefore);
+
       - name: Send reviewer added notification
         if: github.event.action == 'review_requested' && steps.get-thread-ts-reviewer.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@v1.24.0
@@ -176,7 +198,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts-reviewer.outputs.thread_ts }}",
-              "text": "${{ contains(github.event.pull_request.requested_reviewers[*].id, github.event.requested_reviewer.id) && format('{0} has been asked to re-review', steps.get-slack-id.outputs.new_reviewer) || format('{0} has been added as a reviewer', steps.get-slack-id.outputs.new_reviewer) }}"
+              "text": "${{ steps.check-re-review.outputs.is_re_review == 'true' && format('{0} has been asked to re-review', steps.get-slack-id.outputs.new_reviewer) || format('{0} has been added as a reviewer', steps.get-slack-id.outputs.new_reviewer) }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -186,6 +208,7 @@ jobs:
         id: get-thread-ts-close
         uses: actions/github-script@v7
         with:
+          github-token: ${{ steps.bot_token.outputs.token }}
           script: |
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -218,6 +241,7 @@ jobs:
         id: get-thread-ts-review
         uses: actions/github-script@v7
         with:
+          github-token: ${{ steps.bot_token.outputs.token }}
           script: |
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -240,7 +264,7 @@ jobs:
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts-review.outputs.thread_ts }}",
-              "text": "${{ github.event.review.state == 'approved' && '✅' || '🧱' }} ${{ steps.get-slack-id.outputs.reviewer }} ${{ github.event.review.state == 'approved' && 'approved' || 'requested changes' }}"
+              "text": "${{ github.event.review.state == 'approved' && '✅' || '🧱' }} ${{ github.event.review.user.login }} ${{ github.event.review.state == 'approved' && 'approved' || 'requested changes' }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 
