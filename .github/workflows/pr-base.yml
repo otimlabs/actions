@@ -106,21 +106,21 @@ jobs:
         uses: slackapi/slack-github-action@v1.24.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
-          payload: >
+          payload: |
             {
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Pull request ${{ github.event.action == 'ready_for_review' && 'ready for review' || github.event.action }} in `${{ github.event.repository.name }}`:\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ steps.escaped-title.outputs.value }}>"
+                    "text": "Pull request ${{ github.event.action == 'ready_for_review' && 'ready for review' || github.event.action }} in `${{ github.event.repository.name }}`:\\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ toJSON(steps.escaped-title.outputs.value) }}>"
                   }
                 },
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Author:* ${{ steps.get-slack-id.outputs.author }}\n*Reviewers:* ${{ steps.get-slack-id.outputs.reviewers || 'None' }}"
+                    "text": "*Author:* ${{ steps.get-slack-id.outputs.author }}\\n*Reviewers:* ${{ steps.get-slack-id.outputs.reviewers || 'None' }}"
                   }
                 }
               ]
