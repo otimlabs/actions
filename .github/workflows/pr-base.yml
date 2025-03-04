@@ -276,16 +276,14 @@ jobs:
 
       - name: Add reaction to main message
         if: github.event.action == 'closed' && steps.get-thread-ts-close.outputs.thread_ts != ''
-        uses: slackapi/slack-github-action@v1.24.0
+        uses: slackapi/slack-github-action
         with:
-          channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
+          method: reactions.add
           payload: |
             {
-              "token": "${{ secrets.SLACK_BOT_TOKEN }}",
               "channel": "${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}",
               "timestamp": "${{ steps.get-thread-ts-close.outputs.thread_ts }}",
-              "reaction": "${{ github.event.pull_request.merged == true && 'ship' || 'x' }}",
-              "text": "${{ github.event.pull_request.merged == true && 'Adding ship reaction' || 'Adding x reaction' }}"
+              "name": "${{ github.event.pull_request.merged == true && 'ship' || 'x' }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 
