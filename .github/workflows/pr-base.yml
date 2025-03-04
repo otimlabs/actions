@@ -97,8 +97,8 @@ jobs:
       - name: Set escaped title
         id: escaped-title
         run: |
-          title="${{ github.event.pull_request.title }}"
-          echo "value=${title//>/'&gt;'}" >> $GITHUB_OUTPUT
+          title='${{ github.event.pull_request.title }}'
+          echo "value=${title//>/\\>}" >> $GITHUB_OUTPUT
 
       - name: Send initial Slack notification
         if: (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') && !github.event.pull_request.draft
