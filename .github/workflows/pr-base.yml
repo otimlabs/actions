@@ -281,6 +281,7 @@ jobs:
           method: reactions.add
           payload: |
             {
+              "token": "${{ secrets.SLACK_BOT_TOKEN }}",
               "channel": "${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}",
               "timestamp": "${{ steps.get-thread-ts-close.outputs.thread_ts }}",
               "name": "${{ github.event.pull_request.merged == true && 'ship' || 'x' }}"
