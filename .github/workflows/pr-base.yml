@@ -39,12 +39,16 @@ jobs:
         with:
           github-token: ${{ steps.bot_token.outputs.token }}
           script: |
-            await github.rest.issues.addAssignees({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              assignees: [context.payload.pull_request.user.login]
-            })
+            try {
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                assignees: [context.payload.pull_request.user.login]
+              });
+            } catch (error) {
+              console.log(`Could not assign PR to ${context.payload.pull_request.user.login} - they might be a bot or not have repository access`);
+            }
         
       - name: Get Slack User ID
         id: get-slack-id
@@ -225,6 +229,7 @@ jobs:
 
       - name: Send PR state merge/close notification
         if: github.event.action == 'closed' && steps.get-thread-ts-close.outputs.thread_ts != ''
+        id: send-close-message
         uses: slackapi/slack-github-action@v1.24.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
@@ -279,7 +284,8 @@ jobs:
               "token": "${{ secrets.SLACK_BOT_TOKEN }}",
               "channel": "${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}",
               "timestamp": "${{ steps.get-thread-ts-close.outputs.thread_ts }}",
-              "reaction": "${{ github.event.pull_request.merged == true && 'ship' || 'x' }}"
+              "reaction": "${{ github.event.pull_request.merged == true && 'ship' || 'x' }}",
+              "text": "${{ github.event.pull_request.merged == true && 'Adding ship reaction' || 'Adding x reaction' }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 
