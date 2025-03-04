@@ -97,10 +97,7 @@ jobs:
       - name: Set escaped title
         id: escaped-title
         run: |
-          title='${{ github.event.pull_request.title }}'
-          title=${title//>/\\>}
-          title=${title//\"/\\\"}
-          echo "value=${title}" >> $GITHUB_OUTPUT
+          echo "value=$(echo '${{ github.event.pull_request.title }}' | sed 's/"/\\"/g' | sed 's/>/\\>/g')" >> $GITHUB_OUTPUT
 
       - name: Send initial Slack notification
         if: (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') && !github.event.pull_request.draft
@@ -115,7 +112,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Pull request ${{ github.event.action == 'ready_for_review' && 'ready for review' || github.event.action }} in `${{ github.event.repository.name }}`:\\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}>".replace(/"/g, '\\"')
+                    "text": "Pull request ${{ github.event.action == 'ready_for_review' && 'ready for review' || github.event.action }} in `${{ github.event.repository.name }}`:\\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ steps.escaped-title.outputs.value }}>"
                   }
                 },
                 {
