@@ -276,7 +276,7 @@ jobs:
 
       - name: Add reaction to main message
         if: github.event.action == 'closed' && steps.get-thread-ts-close.outputs.thread_ts != ''
-        uses: slackapi/slack-github-action
+        uses: slackapi/slack-github-action@v2.0.0
         with:
           method: reactions.add
           payload: |
