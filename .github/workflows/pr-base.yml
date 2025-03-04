@@ -267,4 +267,19 @@ jobs:
               "text": "${{ github.event.review.state == 'approved' && '✅' || '🧱' }} ${{ github.event.review.user.login }} ${{ github.event.review.state == 'approved' && 'approved' || 'requested changes' }}"
             }
         env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+      - name: Add reaction to main message
+        if: github.event.action == 'closed' && steps.get-thread-ts-close.outputs.thread_ts != ''
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
+          payload: |
+            {
+              "token": "${{ secrets.SLACK_BOT_TOKEN }}",
+              "channel": "${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}",
+              "timestamp": "${{ steps.get-thread-ts-close.outputs.thread_ts }}",
+              "reaction": "${{ github.event.pull_request.merged == true && 'ship' || 'x' }}"
+            }
+        env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 
