@@ -102,7 +102,7 @@ jobs:
       - name: Send initial Slack notification
         if: (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') && !github.event.pull_request.draft
         id: slack-notification
-        uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d # v2.0.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
@@ -142,7 +142,7 @@ jobs:
 
       - name: Send reviewer reminder
         if: (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') && toJSON(github.event.pull_request.requested_reviewers) == '[]' && steps.slack-notification.outputs.thread_ts != ''
-        uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d # v2.0.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
@@ -195,7 +195,7 @@ jobs:
 
       - name: Send reviewer added notification
         if: github.event.action == 'review_requested' && steps.get-thread-ts-reviewer.outputs.thread_ts != ''
-        uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d # v2.0.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
@@ -229,7 +229,7 @@ jobs:
       - name: Send PR state merge/close notification
         if: github.event.action == 'closed' && steps.get-thread-ts-close.outputs.thread_ts != ''
         id: send-close-message
-        uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d # v2.0.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
@@ -262,7 +262,7 @@ jobs:
 
       - name: Send review notification
         if: github.event.action == 'submitted' && (github.event.review.state == 'approved' || github.event.review.state == 'changes_requested') && steps.get-thread-ts-review.outputs.thread_ts != ''
-        uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d # v2.0.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
@@ -275,7 +275,7 @@ jobs:
 
       - name: Add reaction to main message
         if: github.event.action == 'closed' && steps.get-thread-ts-close.outputs.thread_ts != ''
-        uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d # v2.0.0
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
