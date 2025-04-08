@@ -277,10 +277,10 @@ jobs:
         if: github.event.action == 'closed' && steps.get-thread-ts-close.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
         with:
-          method: reactions.add
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
             {
+              "method": "reactions.add",
               "channel": "${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}",
               "timestamp": "${{ steps.get-thread-ts-close.outputs.thread_ts }}",
               "name": "${{ github.event.pull_request.merged == true && 'ship' || 'x' }}"
