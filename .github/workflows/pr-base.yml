@@ -312,7 +312,7 @@ jobs:
               'fix:': 'fix',
               'chore:': 'operations',
               'test:': 'test',
-              'breaking-change': 'breaking change',
+              'breaking-change:': 'breaking change',
               'docs:': 'documentation',
               'hot-fix:': 'hot-fix',
               'revert:': 'revert',
