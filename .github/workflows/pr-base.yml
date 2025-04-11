@@ -290,7 +290,7 @@ jobs:
 
   label-pr:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'edited')
+    if: github.event_name == 'pull_request' && (github.event.action == 'opened' || (github.event.action == 'edited' && github.event.changes.title))
     steps:
       - name: Generate GitHub App Token
         id: bot_token
