@@ -17,8 +17,14 @@ on:
         description: "GitHub App private key for authentication"
 
 jobs:
-  notify-slack:
+  setup-common:
     runs-on: ubuntu-latest
+    outputs:
+      author: ${{ steps.get-slack-id.outputs.author }}
+      reviewers: ${{ steps.get-slack-id.outputs.reviewers }}
+      reviewer: ${{ steps.get-slack-id.outputs.reviewer }}
+      new_reviewer: ${{ steps.get-slack-id.outputs.new_reviewer }}
+      escaped_title: ${{ steps.escaped-title.outputs.value }}
     steps:
       - name: Generate GitHub App Token
         id: bot_token
@@ -26,30 +32,13 @@ jobs:
         with:
           app_id: ${{ secrets.GH_APP_ID }}
           private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
-
+          
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: otimlabs/actions
           path: otimlabs-actions
           token: ${{ steps.bot_token.outputs.token }}
 
-      - name: Auto-assign PR to author
-        if: github.event.action == 'opened' || github.event.action == 'reopened'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        with:
-          github-token: ${{ steps.bot_token.outputs.token }}
-          script: |
-            try {
-              await github.rest.issues.addAssignees({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                assignees: [context.payload.pull_request.user.login]
-              });
-            } catch (error) {
-              console.log(`Could not assign PR to ${context.payload.pull_request.user.login} - they might be a bot or not have repository access`);
-            }
-        
       - name: Get Slack User ID
         id: get-slack-id
         run: |
@@ -99,8 +88,36 @@ jobs:
         run: |
           echo "value=$(echo '${{ github.event.pull_request.title }}' | sed 's/"/\\"/g' | sed 's/>/\\>/g')" >> $GITHUB_OUTPUT
 
+  pr-initial-notification:
+    needs: [setup-common]
+    runs-on: ubuntu-latest
+    if: (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') && !github.event.pull_request.draft
+    steps:
+      - name: Generate GitHub App Token
+        id: bot_token
+        uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
+        with:
+          app_id: ${{ secrets.GH_APP_ID }}
+          private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+
+      - name: Auto-assign PR to author
+        if: github.event.action == 'opened' || github.event.action == 'reopened'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ steps.bot_token.outputs.token }}
+          script: |
+            try {
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                assignees: [context.payload.pull_request.user.login]
+              });
+            } catch (error) {
+              console.log(`Could not assign PR to ${context.payload.pull_request.user.login} - they might be a bot or not have repository access`);
+            }
+
       - name: Send initial Slack notification
-        if: (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') && !github.event.pull_request.draft
         id: slack-notification
         uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
         with:
@@ -112,14 +129,14 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Pull request ${{ github.event.action == 'ready_for_review' && 'ready for review' || github.event.action }} in `${{ github.event.repository.name }}`:\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ steps.escaped-title.outputs.value }}>"
+                    "text": "Pull request ${{ github.event.action == 'ready_for_review' && 'ready for review' || github.event.action }} in `${{ github.event.repository.name }}`:\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ needs.setup-common.outputs.escaped_title }}>"
                   }
                 },
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Author:* ${{ steps.get-slack-id.outputs.author }}\n*Reviewers:* ${{ steps.get-slack-id.outputs.reviewers || 'None' }}"
+                    "text": "*Author:* ${{ needs.setup-common.outputs.author }}\n*Reviewers:* ${{ needs.setup-common.outputs.reviewers || 'None' }}"
                   }
                 }
               ]
@@ -128,7 +145,6 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
       - name: Store thread_ts
-        if: (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') && !github.event.pull_request.draft
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           github-token: ${{ steps.bot_token.outputs.token }}
@@ -141,20 +157,31 @@ jobs:
             })
 
       - name: Send reviewer reminder
-        if: (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') && toJSON(github.event.pull_request.requested_reviewers) == '[]' && steps.slack-notification.outputs.thread_ts != ''
+        if: toJSON(github.event.pull_request.requested_reviewers) == '[]' && steps.slack-notification.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
             {
               "thread_ts": "${{ steps.slack-notification.outputs.thread_ts }}",
-              "text": "${{ steps.get-slack-id.outputs.author }}, please add reviewers to your PR"
+              "text": "${{ needs.setup-common.outputs.author }}, please add reviewers to your PR"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
+  review-request:
+    needs: [setup-common]
+    runs-on: ubuntu-latest
+    if: github.event.action == 'review_requested'
+    steps:
+      - name: Generate GitHub App Token
+        id: bot_token
+        uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
+        with:
+          app_id: ${{ secrets.GH_APP_ID }}
+          private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+
       - name: Get thread_ts for reviewer added
-        if: github.event.action == 'review_requested'
         id: get-thread-ts-reviewer
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
@@ -174,7 +201,6 @@ jobs:
             }
 
       - name: Check if re-review
-        if: github.event.action == 'review_requested'
         id: check-re-review
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
@@ -194,54 +220,31 @@ jobs:
             core.setOutput('is_re_review', hasReviewedBefore);
 
       - name: Send reviewer added notification
-        if: github.event.action == 'review_requested' && steps.get-thread-ts-reviewer.outputs.thread_ts != ''
+        if: steps.get-thread-ts-reviewer.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
           payload: |
             {
               "thread_ts": "${{ steps.get-thread-ts-reviewer.outputs.thread_ts }}",
-              "text": "${{ steps.check-re-review.outputs.is_re_review == 'true' && format('{0} has been asked to re-review', steps.get-slack-id.outputs.new_reviewer) || format('{0} has been added as a reviewer', steps.get-slack-id.outputs.new_reviewer) }}"
+              "text": "${{ steps.check-re-review.outputs.is_re_review == 'true' && format('{0} has been asked to re-review', needs.setup-common.outputs.new_reviewer) || format('{0} has been added as a reviewer', needs.setup-common.outputs.new_reviewer) }}"
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
-      - name: Get thread_ts for PR close
-        if: github.event.action == 'closed'
-        id: get-thread-ts-close
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+  review-submission:
+    needs: [setup-common]
+    runs-on: ubuntu-latest
+    if: github.event.action == 'submitted' && (github.event.review.state == 'approved' || github.event.review.state == 'changes_requested')
+    steps:
+      - name: Generate GitHub App Token
+        id: bot_token
+        uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
         with:
-          github-token: ${{ steps.bot_token.outputs.token }}
-          script: |
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number
-            });
-            const threadComment = comments.data.find(comment => 
-              comment.body.includes('SLACK_THREAD_TS:')
-            );
-            if (threadComment) {
-              const thread_ts = threadComment.body.match(/SLACK_THREAD_TS:(.*) -->/)[1].trim();
-              core.setOutput('thread_ts', thread_ts);
-            }
-
-      - name: Send PR state merge/close notification
-        if: github.event.action == 'closed' && steps.get-thread-ts-close.outputs.thread_ts != ''
-        id: send-close-message
-        uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
-        with:
-          channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
-          payload: |
-            {
-              "thread_ts": "${{ steps.get-thread-ts-close.outputs.thread_ts }}",
-              "text": "${{ github.event.pull_request.merged == true && '🚢 PR has been merged!' || '❌ PR was closed without merging' }}"
-            }
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          app_id: ${{ secrets.GH_APP_ID }}
+          private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 
       - name: Get thread_ts for review
-        if: github.event.action == 'submitted'
         id: get-thread-ts-review
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
@@ -261,7 +264,7 @@ jobs:
             }
 
       - name: Send review notification
-        if: github.event.action == 'submitted' && (github.event.review.state == 'approved' || github.event.review.state == 'changes_requested') && steps.get-thread-ts-review.outputs.thread_ts != ''
+        if: steps.get-thread-ts-review.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
@@ -273,8 +276,51 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
+  pr-close:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed'
+    steps:
+      - name: Generate GitHub App Token
+        id: bot_token
+        uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
+        with:
+          app_id: ${{ secrets.GH_APP_ID }}
+          private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+
+      - name: Get thread_ts for PR close
+        id: get-thread-ts-close
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ steps.bot_token.outputs.token }}
+          script: |
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            const threadComment = comments.data.find(comment => 
+              comment.body.includes('SLACK_THREAD_TS:')
+            );
+            if (threadComment) {
+              const thread_ts = threadComment.body.match(/SLACK_THREAD_TS:(.*) -->/)[1].trim();
+              core.setOutput('thread_ts', thread_ts);
+            }
+
+      - name: Send PR state merge/close notification
+        if: steps.get-thread-ts-close.outputs.thread_ts != ''
+        uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
+        with:
+          channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
+          payload: |
+            {
+              "thread_ts": "${{ steps.get-thread-ts-close.outputs.thread_ts }}",
+              "text": "${{ github.event.pull_request.merged == true && '🚢 PR has been merged!' || '❌ PR was closed without merging' }}"
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
       - name: Add reaction to main message
-        if: github.event.action == 'closed' && steps.get-thread-ts-close.outputs.thread_ts != ''
+        if: steps.get-thread-ts-close.outputs.thread_ts != ''
         uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
         with:
           channel-id: ${{ secrets.SLACK_GITHUB_LOGS_CHANNEL_ID }}
@@ -298,7 +344,7 @@ jobs:
         with:
           app_id: ${{ secrets.GH_APP_ID }}
           private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
-      
+
       - name: Label PR based on title
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:

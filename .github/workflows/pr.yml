@@ -1,8 +1,9 @@
 name: PR Workflow
 
 on:
+  push:
   pull_request:
-    types: [opened, reopened, review_requested, converted_to_draft, ready_for_review]
+    types: [opened, edited, reopened, review_requested, converted_to_draft, ready_for_review]
   pull_request_target:
     types: [closed]
   pull_request_review:
@@ -10,5 +11,5 @@ on:
 
 jobs:
   notify:
-    uses: otimlabs/actions/.github/workflows/pr-base.yml@main
+    uses: otimlabs/actions/.github/workflows/pr-base.yml@ahmad/increase_pr-base_parallelization
     secrets: inherit
