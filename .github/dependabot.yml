@@ -1,7 +1,10 @@
 version: 2
 updates:
 
-  - package-ecosystem: "github-actions"
+  - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: weekly
+    ignore:
+      - dependency-name: "slackapi/slack-github-action"
+        update-types: ["version-update:semver-major"]

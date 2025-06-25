@@ -314,7 +314,7 @@ jobs:
               'test:': 'test',
               'breaking-change:': 'breaking change',
               'docs:': 'documentation',
-              'hot-fix:': 'hot-fix',
+              'hotfix:': 'hot-fix',
               'revert:': 'revert',
               'style:': 'style'
             };
